@@ -1,4 +1,7 @@
 import numpy as np
+import os
+import functools
+import xarray as xr
 import preprocess as pp
 import datetime
 import multiprocessing
@@ -22,7 +25,127 @@ LC_CLASSES = [[11, 12],  # water/ice
               [90, 95]]  # wetlands
 
 
-def batch_process(srcDir, parallel=True):
+def make_dataset(outpath, srcdir, per_band=True):
+    """
+    make dataset for a model.
+
+    Args:
+        outpath (str): output data path for long-term saving.
+        srcdir (str): directory to load images.
+        per_band (bool): if True, process images by band separatedly.
+    
+    Returns:
+        None
+    
+    Notes:
+        Use per_band=True when your entire dataset cannot fit to your memory.
+        This will first cache data per band, and re-read them all via
+        memory-mapping which reduces memory consumption.
+    """
+    if per_band:
+        outdir = os.path.dirname(outpath)
+        outpaths, outpath_label = get_data_by_bands(srcdir, outdir)
+        darrays = []
+        for idx, path in enumerate(outpaths):
+            # re-read cached netCDF. This is lazy-loaded.
+            darray = xr.open_dataset(path)[BANDS[idx]]
+            darrays.append(darray)
+        X = remap_bands_all(darrays)
+        Y = xr.open_dataset(outpath_label)["labels"]
+    else:
+        X, Y = batch_process(srcdir)
+        # save to netCDF for long-term storation
+    save_to_netCDF(outpath, X, Y, X_ATTR, Y_ATTR)
+    describe_dataset(X, Y)
+
+
+def remap_bands_all(darrays):
+    """
+    re-map bands into one array.
+
+    Args:
+        darrays (list): list of xarray.DataArray
+    
+    Returns:
+        xarray.DataArray
+    """
+    nsamples = darrays[0].shape[0]
+    features_all = []
+    for idx in range(nsamples):
+        features = remap_bands(darrays, idx)
+        features_all.append(features)
+    X = xr.concat(features_all, dim="sample")
+    return X
+
+
+def remap_bands(darrays, idx):
+    """
+    re-map bands into one array.
+
+    Args:
+        darrays (list): list of xarray.DataArray
+        idx (int): sample coordinate
+    Returns:
+        xarray.DataArray
+    """
+    bands = []
+    for darray in darrays:
+        band_data = darray.sel(sample=idx)
+        bands.append(band_data)
+    features = xr.concat(bands, dim="feature")
+    return features
+
+
+def get_data_by_bands(srcdir, outdir, labelBandAxis=7):
+    """
+    generate feature/label data by bands to reduce memory consumption.
+    for later lazy-loading process, the output will be stored into
+    netCDF4 file format instead of HDF5.
+
+    Args:
+        srcdir (str): src directory to load images
+        outDir (str): output directory to store netCDF 
+    """
+    t = datetime.datetime.now()
+    outname_band = os.path.join(outdir, 
+                                "band-{0}.nc")
+    outname_label = os.path.join(outdir,
+                                 "labels.nc")
+    outpaths = []
+    for bandaxis in [0, 1, 2, 3, 4, 5, 6]:
+        outpath = outname_band.format(BANDS[bandaxis])
+        data = batch_process_per_band(srcdir, bandaxis)
+        nsamples = data.shape[0]
+        nfeatures = data.shape[1]
+        nverticals = data.shape[2]
+        nhorizontals = data.shape[3]
+        # this DataArray is loaded on the memory, thus we cache it first.
+        darray = xr.DataArray(data,
+                              dims=["sample", "feature", "v", "h"],
+                              coords=[np.arange(nsamples),
+                                      np.arange(nfeatures),
+                                      np.arange(nverticals),
+                                      np.arange(nhorizontals)])
+        darray.attrs["creationDate"] = t.strftime("%Y%m%d-%H:%M")
+        darray.attrs["min"] = data.min()
+        darray.attrs["mean"] = data.mean()
+        darray.attrs["max"] = data.max()
+        darray.name = BANDS[bandaxis]
+        darray.to_dataset().to_netcdf(outpath)
+        outpaths.append(outname_band.format(BANDS[bandaxis]))
+    del darray
+
+    Y = batch_process_per_band(srcdir, labelBandAxis)
+    labels = xr.DataArray(Y, dims=["sample"], coords=[np.arange(Y.shape[0])])
+    labels.attrs["creationDate"] = t.strftime("%Y%m%d-%H:%M")
+    for key, item in Y_ATTR.items():
+        labels.attrs[key] = item
+    labels.name = "labels"
+    labels.to_dataset().to_netcdf(outname_label)
+    
+    return outpaths, outname_label
+
+def batch_process(srcDir, parallel=False):
     """
     batch the image processing in either serial or parallel.
 
@@ -33,6 +156,10 @@ def batch_process(srcDir, parallel=True):
     Returns:
         np.ndarray: features
         np.ndarray: labels
+    
+    Notes:
+        when your data is large, this (and its child methods) will take
+        lots of memory.
     """
     files = glob.glob(srcDir+"/*")
     if parallel:
@@ -55,6 +182,40 @@ def batch_process(srcDir, parallel=True):
     return X, Y
 
 
+def batch_process_per_band(srcDir, bandaxis, parallel=False):
+    """
+    batch the image processing in either serial or parallel.
+
+    Args:
+        srcDir (str): image source directory
+        parallel (bool)
+    
+    Returns:
+        np.ndarray: features
+        np.ndarray: labels
+    
+    Notes:
+        when your data is large, this (and its child methods) will take
+        lots of memory.
+    """
+    files = glob.glob(srcDir+"/*")
+    if parallel:
+        files_part = [list(array) 
+                      for array in np.array_split(files, NCPU)]
+        with multiprocessing.Pool(NCPU) as p:
+            func = functools.partial(process_images_per_band, bandaxis)
+            outlist = p.map(func,
+                            files_part)
+        data = np.concatenate(outlist, axis=0)
+    else:
+        data = process_images_per_band(bandaxis, files, verbose=True)
+    # featureWiseStandardization for R, G, B, NIR, SWIR
+    if bandaxis in [0, 1, 2, 3, 4]:
+        # all arrays are shape[nsamples, 1, nv, nh]
+        data[:, 0, :, :] = pp.featureWiseStandardization(data[:, 0, :, :])
+    return data
+
+
 def process_images(tiffpaths, verbose=False):
     """
     wrapper for process_image() for iteration.
@@ -73,9 +234,34 @@ def process_images(tiffpaths, verbose=False):
         X, y = process_image(tiffpath)
         Xlist.append(np.expand_dims(X,axis=0))
         Ylist.append(y)
-    X_all = np.vstack(Xlist)  # list of arrays
+    X_all = np.vstack(Xlist).astype(DTYPE)  # list of arrays
     Y_all = np.array(Ylist).astype(DTYPE)  # list of scalars
     return [X_all, Y_all]
+
+
+def process_images_per_band(bandaxis, tiffpaths, verbose=False):
+    """
+    wrapper for process_image() for iteration.
+
+    Args:
+        tiffpaths (list): list of string path
+        bandaxis (int): axis to process
+    
+    Returns:
+        numpy.ndarray
+    """
+    dlist = []
+    if verbose:
+        tiffpaths = tqdm.tqdm(tiffpaths)
+    for tiffpath in tiffpaths:
+        data = process_image_per_band(bandaxis, tiffpath)
+        if bandaxis in [0, 1, 2, 3, 4, 5, 6]:
+            dlist.append(np.expand_dims(data, axis=0))
+            d_all = np.concatenate(dlist, axis=0).astype(DTYPE)  # list of arrays
+        else:
+            dlist.append(data)
+            d_all = np.array(dlist).astype(DTYPE)
+    return d_all
 
 
 def process_image(tiffpath):
@@ -107,9 +293,37 @@ def process_image(tiffpath):
     X = np.vstack([sentinel, encoded_lc, elv])
     # label
     y = get_label(farray[7])
-    print(X.shape)
-    X = X.astype(DTYPE)
     return X, y
+
+
+def process_image_per_band(bandaxis, tiffpath):
+    """
+    pre-process image to make train/test dataset for models.
+    only process one band. use this if your entire data does not fit
+    to your memory.
+
+    Args:
+        tiffpath (str): path to TIFF file
+        bandaxis (int): axis to process
+
+    Returns:
+        numpy.ndarray()
+    """
+    farray = pp.load_tiff(tiffpath)
+    if bandaxis in [0, 1, 2, 3, 4]:
+        # R, G, B, NIR, SWIR
+        data = np.expand_dims(farray[bandaxis], axis=0)
+    elif bandaxis == 5:
+        # land cover
+        data = pp.one_hot_encoding(farray[5], LC_CLASSES)
+        data = pp.remove_empty(data)
+    elif bandaxis == 6:
+        data = np.expand_dims(pp.sampleWiseStandardization(farray[6]), axis=0)
+    elif bandaxis == 7:
+        data = get_label(farray[7])
+    else:
+        raise KeyError("Undefined band axis {0}".format(bandaxis))
+    return data
 
 
 def get_label(leveeArray, threshold=10):
@@ -124,7 +338,6 @@ def get_label(leveeArray, threshold=10):
     leveeArray[np.isnan(leveeArray)] = 0
     leveeCount = np.sum(leveeArray)
     if leveeCount > threshold:
-        print("levee")
         return 1
     else:
         return 0
@@ -148,18 +361,30 @@ def parse_pooled_list(plist):
     return items
 
 
-def save_to_hdf5(h5path, X, Y, X_attr, Y_attr):
+def save_to_netCDF(outpath, X, Y, X_attr, Y_attr):
     t = datetime.datetime.now()
-    f = h5py.File(h5path, mode="w")
-    labels = f.create_dataset("labels", data=Y)
-    for key, item in Y_attr.items():
-        labels.attr[key] = item
-    labels.attrs["creationDate"] = t.strftime("%Y%m%d_%H:%M")
-    features = f.create_dataset("features", data=X)
+    
+    dshape = X.shape
+    nsamples = dshape[0]
+    nfeatures = dshape[1]
+    nverticals = dshape[2]
+    nhorizontals = dshape[3]
+    features = xr.DataArray(X,
+                            dims=["sample", "feature", "v", "h"],
+                            coords=[np.arange(nsamples),
+                                    np.arange(nfeatures),
+                                    np.arange(nverticals),
+                                    np.arange(nhorizontals)])
+    features.attrs["creationDate"] = t.strftime("%Y%m%d-%H:%M")
     for key, item in X_attr.items():
-        features.attr[key] = item
-    features.attrs["creationDate"] = t.strftime("%Y%m%d_%H:%M")
-    f.close()
+        features.attrs[key] = item
+    
+    labels = xr.DataArray(Y, dims=["sample"], coords=[np.arange(Y.shape[0])])
+    labels.attrs["creationDate"] = t.strftime("%Y%m%d-%H:%M")
+    for key, item in Y_attr.items():
+        labels.attrs[key] = item
+    dset = xr.Dataset({"features": features, "labels": labels})
+    dset.to_netcdf(outpath)
 
 
 def describe_dataset(X, Y):
@@ -173,18 +398,13 @@ def describe_dataset(X, Y):
     Returns:
         None
     """
-    uniques, counts = np.unique(a, return_counts=True)
+    uniques, counts = np.unique(Y, return_counts=True)
     print("number of labels:")
     for idx, u in enumerate(uniques):
         print("\t{0}:{1}/{2}".format(u, counts[idx], Y.shape[0]))
-    num_of_bands = X.shape[1]
-    print("feature stats:")
-    for i in range(num_of_bands):
-        data = X[:, i, :, :]
-        "feature_{0}: min {1}; max{2}; mean{3}".format(data.min(), data.max(), data.mean())
 
 
 if __name__ == "__main__":
-    X, Y = batch_process("../Dataset/images/", parallel=False)
-    save_to_hdf5("../Dataset/data.hdf5", X, Y, X_ATTR, Y_ATTR)
-    describe_dataset(X, Y)
+    srcdir = "../Dataset/images/"
+    outpath = "../Dataset/data.nc"
+    make_dataset(outpath, srcdir, per_band=True)

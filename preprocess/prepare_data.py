@@ -23,6 +23,17 @@ LC_CLASSES = [11, 12,  # water/ice
 
 
 def batch_process(srcDir, parallel=True):
+    """
+    batch the image processing in either serial or parallel.
+
+    Args:
+        srcDir (str): image source directory
+        parallel (bool)
+    
+    Returns:
+        np.ndarray: features
+        np.ndarray: labels
+    """
     files = glob.glob(srcDir+"/*")
     if parallel:
         files_part = [list(array) 
@@ -38,6 +49,9 @@ def batch_process(srcDir, parallel=True):
         Y = outitems[1]
     print("Feature matrix shape [samples, features, d0, d1]: ", X.shape)
     print("Label shape [samples]", Y.shape)
+    # featureWiseStandardization for R, G, B, NIR, SWIR
+    for i in range(0, 5):
+        X[:, i, :, :] = pp.featureWiseStandardization(X[:, i, :, :])
     return X, Y
 
 
@@ -167,3 +181,8 @@ def save_to_hdf5(h5path, X, Y, X_attr, Y_attr):
         features.attr[key] = item
     features.attrs["creationDate"] = t.strftime("%Y%m%d_%H:%M")
     f.close()
+
+
+if __name__ == "__main__":
+    X, Y = batch_process("./leveeDetectionDataset", parallel=False)
+    save_to_hdf5("./leveeDetectionDataset/data.hdf5", X, Y, X_ATTR, Y_ATTR)

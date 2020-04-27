@@ -2,7 +2,7 @@
 Preliminary version   
 ## Project description  
 trying to detect two things:  
-- **where** does levees locate?  
+- **where** does levees locate at?  
 - **what** are the properties (e.g., height) of those levees?  
   
 As of 2020/04, currently am working in the first bullet, **where** are levees.  

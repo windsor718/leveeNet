@@ -37,7 +37,7 @@ While Keras has some utilities for preprocessing, as we have multiple bands diff
 1. standardization 
    - elevation: *sampleWiseStandardization*. We are more interested in the variation of the elevation in a image, not an entire dataset. 
      - For instance, there should be differences in mean elevation between images from mountain and near-ocean, but this difference of mean may not be relavent.   
-   - bands from Sentinel-2: *featureWiseStandardization*. this is more like global variable, thus perform standardiztion for entire dataset.  
+   - bands from Sentinel-2: *featureWiseStandardization*. they are more like global variables, thus perform standardiztion for an entire dataset.  
 2. one-hot-encoding
    - as the land cover band (channel) is categorical, create dummy variables via one-hot-encoding. 
    - We also need to remove homogeneous layers (i.e., all-zero).  

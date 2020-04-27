@@ -9,7 +9,7 @@ As of 2020/04, currently am working in the first bullet, **where** are levees.
 For the very first step of this project, the current goal is to predict whether the image is protected-river or not.  
 ## Change log  
 2020/04/26 created repository.  
-## Source codes  
+## Source trees  
 - **gee**: scripts for processing in/out-of Google Earth Engine  
 - **preprocess**: scripts for preprocessing output images from gee  
 ## Workflow  

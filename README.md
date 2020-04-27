@@ -1,4 +1,4 @@
-# leveeNet: Deep learning based manmade-levee detection project  
+# leveeNet: Deep learning based manmade-levee detection  
 Preliminary version   
 ## Project description  
 trying to detect two things:  
@@ -42,8 +42,16 @@ While Keras has some utilities for preprocessing, as we have multiple bands diff
    - as the land cover band (channel) is categorical, create dummy variables via one-hot-encoding. 
    - We also need to remove homogeneous layers (i.e., all-zero).  
 3. labeling: make labels from the levee layer.  
-4. output to HDF5.  
+4. output to netCDF4 to read it later via XArray.  
    
+### Model development  
+In process.  
+  
+### Train and test the model  
+I trained the model with NVIDIA GTX-1070, CUDA10.1, CuDNN7, and Tensorflow-xx.xx.  
+The scripts should work under this configuration. While other configuration may also work, you will need corresponding CUDA, CuDNN, and Tensorflow version to run the scripts.  
+To replicate the environment, Dockerfile is in this repository.  
+  
 ## Future improvements  
 - use truely global dataset
 - predict the location of levees  

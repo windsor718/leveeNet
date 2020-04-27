@@ -43,3 +43,8 @@ While Keras has some utilities for preprocessing, as we have multiple bands diff
    - We also need to remove homogeneous layers (i.e., all-zero).  
 3. labeling: make labels from the levee layer.  
 4. output to HDF5.  
+   
+## Future improvements  
+- use truely global dataset
+- predict the location of levees  
+- use [MERIT-HYDRO](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019WR024873)/[GRWL](https://science.sciencemag.org/content/361/6402/585) 

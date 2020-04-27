@@ -12,14 +12,14 @@ BANDS = ['R', 'G', 'B', 'NIR', 'SWIR',
          'landcover', 'elevation', 'levee']
 X_ATTR = {"desctiption": "feature array","bands": BANDS}
 Y_ATTR = {"description": "contains levee in an image (1) or not (0)"}
-LC_CLASSES = [11, 12,  # water/ice
-              21, 22, 23, 24,  # developed
-              31,  # barren land
-              41, 42, 43,  # forest
-              51, 52,  # scrub
-              71, 72, 73, 74,  # grass
-              81, 82,  # crops
-              90, 95]  # wetlands
+LC_CLASSES = [[11, 12],  # water/ice
+              [21, 22, 23, 24],  # developed
+              [31],  # barren land
+              [41, 42, 43],  # forest
+              [51, 52],  # scrub
+              [71, 72, 73, 74],  # grass
+              [81, 82],  # crops
+              [90, 95]]  # wetlands
 
 
 def batch_process(srcDir, parallel=True):
@@ -74,7 +74,7 @@ def process_images(tiffpaths, verbose=False):
         Xlist.append(np.expand_dims(X,axis=0))
         Ylist.append(y)
     X_all = np.vstack(Xlist)  # list of arrays
-    Y_all = np.array(Ylist)  # list of scalars
+    Y_all = np.array(Ylist).astype(DTYPE)  # list of scalars
     return [X_all, Y_all]
 
 
@@ -97,40 +97,19 @@ def process_image(tiffpath):
     
     # landcover
     encoded_lc = pp.one_hot_encoding(farray[5], LC_CLASSES)
-    encoded_lc = remove_empty(encoded_lc)
-    print("land-cover [encoded] shape: ", encoded_lc.shape)
+    encoded_lc = pp.remove_empty(encoded_lc)
+    # print("land-cover [encoded] shape: ", encoded_lc.shape)
     # elevation
-    elv = pp.sampleWiseStandardization(farray[6])
+    elv = np.expand_dims(pp.sampleWiseStandardization(farray[6]), axis=0)
     # for R, G, B, NIR, SWIR 
     # perform featureWiseStandardization later
-    X = farray.copy()[0:7]
-    X[5] = encoded_lc
-    X[6] = elv
+    sentinel = farray[0:5]
+    X = np.vstack([sentinel, encoded_lc, elv])
     # label
     y = get_label(farray[7])
-    
+    print(X.shape)
     X = X.astype(DTYPE)
-    y = y.astype(DTYPE)
     return X, y
-
-
-def remove_empty(array, axis=0):
-    """
-    remove empty (all 0) layer after one-hot encoding.
-
-    Args:
-        array (numpy.ndarray): one-hot encoded array
-        axis (int): axis of layers
-    
-    Returns:
-        numpy.ndarray: the dimension in the specified axis
-            is reduced to M < N.
-    """
-    remove_idx = []
-    for l in range(array.shape[axis]):
-        if (array.sum(axis=axis) == 0).all():
-            remove_idx.append(l)
-    return np.delete(array, remove_idx, axis=axis)
 
 
 def get_label(leveeArray, threshold=10):
@@ -183,6 +162,29 @@ def save_to_hdf5(h5path, X, Y, X_attr, Y_attr):
     f.close()
 
 
+def describe_dataset(X, Y):
+    """
+    print out summary of dataset.
+
+    Args:
+        X (numpy.ndarray): feature array
+        Y (numpy.ndarray): label array
+    
+    Returns:
+        None
+    """
+    uniques, counts = np.unique(a, return_counts=True)
+    print("number of labels:")
+    for idx, u in enumerate(uniques):
+        print("\t{0}:{1}/{2}".format(u, counts[idx], Y.shape[0]))
+    num_of_bands = X.shape[1]
+    print("feature stats:")
+    for i in range(num_of_bands):
+        data = X[:, i, :, :]
+        "feature_{0}: min {1}; max{2}; mean{3}".format(data.min(), data.max(), data.mean())
+
+
 if __name__ == "__main__":
-    X, Y = batch_process("./leveeDetectionDataset", parallel=False)
-    save_to_hdf5("./leveeDetectionDataset/data.hdf5", X, Y, X_ATTR, Y_ATTR)
+    X, Y = batch_process("../Dataset/images/", parallel=False)
+    save_to_hdf5("../Dataset/data.hdf5", X, Y, X_ATTR, Y_ATTR)
+    describe_dataset(X, Y)

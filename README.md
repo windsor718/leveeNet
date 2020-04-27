@@ -5,6 +5,7 @@ trying to detect two things:
 - **where** does levees locate?  
 - **what** are the properties (e.g., height) of those levees?
 As of 2020/04, currently am working in the first bullet, **where** are levees.  
+  
 For the very first step of this project, the current goal is to predict whether the image is protected-river or not.  
 ## Change log  
 2020/04/26 created repository.  

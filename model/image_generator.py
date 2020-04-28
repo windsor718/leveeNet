@@ -1,10 +1,10 @@
+import tensorflow
 import numpy as np
-import keras
-from keras.utils import np_utils
+from tensorflow.keras import utils
 from imgaug import augmenters as iaa
 
 
-class DataGenerator(keras.utils.Sequence):
+class DataGenerator(tensorflow.keras.utils.Sequence):
     """
     custom data generator to perform following:
         1. generate a batch of numpy.ndarray from xarray.DataArray
@@ -16,7 +16,7 @@ class DataGenerator(keras.utils.Sequence):
     
     Args:
         X_darray (xarray.DataArray): feature DataArray [N, feature, h, w]
-        Y_darary (xarray.DataArray): label DataArray [N]
+        Y_darray (xarray.DataArray): label DataArray [N]
         batch_size (int): number of images to load in a batch
         image_size (tuple): (int v, int h). output image shape
         max_pool (int): default None. if int, then pool image via max pooling.
@@ -55,22 +55,23 @@ class DataGenerator(keras.utils.Sequence):
         indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
 
         # select data and load images
-        Y_batch = self.Y_darray.sel(samples=indexes).values
-        X_batch = self.X_darray.sel(samples=indexes).values
+        Y_batch = self.Y.isel(sample=indexes).values
+        X_batch = self.X.isel(sample=indexes).values
 
         # preprocess and augment data
         if isinstance(self.max_pool, int):
             X_batch = self.maxPooling(X_batch, self.max_pool)
         X_batch = iaa.Resize({"height": self.image_size[0], "width": self.image_size[1]},
                              interpolation="nearest").augment_images(X_batch)
+        X_batch = np.stack(X_batch, axis=0)
 
-        if self.augment == True:
+        if self.augment:
             X_batch = self.augmentor(X_batch)
+            X_batch = np.stack(X_batch, axis=0)
 
         # categorical label for Keras
-        Y_batch = np_utils.categorical(Y_batch, self.num_classes)
-
-        return X_batch, Y_batch
+        Y_batch = utils.to_categorical(Y_batch, max(2, self.num_classes))
+        return X_batch, Y_batch, [None]
 
     def maxPooling(self, X, kernel_size):
         aug = iaa.MaxPooling(kernel_size, keep_size=False)

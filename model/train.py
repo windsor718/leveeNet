@@ -3,11 +3,10 @@ import xarray as xr
 import argparse
 import configparser
 import pickle
-import keras.backend.tensorflow_backend as KTF
-import tensorflow as tf
+# import tensorflow.keras.backend.tensorflow_backend as KTF
 import image_generator
-from keras.optimizers import Adam
-from keras.callbacks import TensorBoard, ReduceLROnPlateau, ModelCheckpoint, EarlyStopping
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import TensorBoard, ReduceLROnPlateau, ModelCheckpoint, EarlyStopping
 from model import leveeNet
 
 parser = argparse.ArgumentParser(description="Train levee detection model")
@@ -27,7 +26,9 @@ resize_v = config.getint("generator", "resize_v")
 assert isinstance(resize_v, int), "resize_v must be tuple, but got {0}".format(type(resize_v))
 resize_h = config.getint("generator", "resize_h")
 assert isinstance(resize_h, int), "resize_h must be tuple, but got {0}".format(type(resize_h))
-image_size = (resize_v, resize_h)
+n_channels = config.getint("generator", "n_channels")
+assert isinstance(n_channels, int), "resize_h must be tuple, but got {0}".format(type(n_channels))
+image_size = (resize_v, resize_h, n_channels)
 max_pool = config.getint("generator", "max_pool")
 assert (isinstance(max_pool, int) | (max_pool is None)), "max_pool must be None or int, but got {0}".format(type(max_pool))
 shuffle = config.getboolean("generator", "shuffle")
@@ -54,11 +55,10 @@ indices = np.arange(0, nsamples, 1)
 np.random.shuffle(indices)
 train_indices = indices[0:int(nsamples*split)]
 test_indices = indices[int(nsamples*split)::]
-X_train = X.sel(sample=train_indices)
-X_test = X.sel(sample=test_indices)
-Y_train = Y.sel(sample=train_indices)
-Y_test = Y.sel(sample=test_indices)
-
+X_train = X.isel(sample=train_indices)
+X_test = X.isel(sample=test_indices)
+Y_train = Y.isel(sample=train_indices)
+Y_test = Y.isel(sample=test_indices)
 # instantiate generator
 train_generator = image_generator.DataGenerator(X_train, Y_train,
                                                 n_classes, batch_size,
@@ -90,32 +90,30 @@ checkpoint = ModelCheckpoint('./model_weights.hdf5',
                              save_best_only=True,
                              mode='min',
                              save_weights_only=True)
-
 # start session
-old_session = KTF.get_session()
+# old_session = KTF.get_session()
 
-with tf.Graph().as_default():
-    session = tf.Session('')
-    KTF.set_session(session)
+# with tf.Graph().as_default():
+    # session = tf.Session('')
+    # KTF.set_session(session)
     # KTF.set_learning_phase(1)  # need this if you use dropout
-    model = leveeNet(n_classes, image_size)
-    model.compile(loss='binary_crossentropy', optimizer=Adam(), metrics=['accuracy'])
+model = leveeNet(n_classes, image_size)
+model.compile(loss='categorical_crossentropy', optimizer=Adam(), metrics=['accuracy'])
 
-    tensorboard = TensorBoard(log_dir=logpath, histogram_freq=1)
+tensorboard = TensorBoard(log_dir=logpath, histogram_freq=1)
 
-    history = model.fit_generator(generator=train_generator,
-                                  validation_data=test_generator,
-                                  epochs=num_epochs,
-                                  steps_per_epoch=len(train_generator),
-                                  validation_steps=len(test_generator),
-                                  callbacks=[tensorboard, early_stop, checkpoint],
-                                  verbose=1,
-                                  )
-    model.save(model_outpath)
-    with open(history_outpath, "wb") as f:
-        pickle.dump(history, f)
-    score = model.evaluate(X_test, Y_test, verbose=0)
-    print('Test score:', score[0])
-    print('Test accuracy;', score[1])
+history = model.fit_generator(generator=train_generator,
+                              validation_data=test_generator,
+                              epochs=num_epochs,
+                              steps_per_epoch=len(train_generator),
+                              validation_steps=len(test_generator),
+                              callbacks=[tensorboard, early_stop, checkpoint],
+                              verbose=1)
+model.save(model_outpath)
+with open(history_outpath, "wb") as f:
+    pickle.dump(history, f)
+score = model.evaluate(X_test, Y_test, verbose=0)
+print('Test score:', score[0])
+print('Test accuracy;', score[1])
 
-KTF.set_session(old_session)
+# KTF.set_session(old_session)

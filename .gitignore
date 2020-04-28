@@ -2,3 +2,4 @@
 *.zip
 *.vscode
 Dataset/*
+log/*

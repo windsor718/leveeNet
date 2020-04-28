@@ -1,5 +1,4 @@
 import numpy as np
-import time
 import keras
 from keras.utils import np_utils
 from imgaug import augmenters as iaa
@@ -42,23 +41,23 @@ class DataGenerator(keras.utils.Sequence):
 
     def __len__(self):
         "Denotes the number of batches per epoch"
-        return int(np.floor(self.X_darray.sizes["sample"] / self.batch_size))
+        return int(np.floor(self.X.sizes["sample"] / self.batch_size))
 
     def on_epoch_end(self, shuffle):
         "Updates indexes after each epoch"
-        self.indexes = np.arange(self.X_darray.sizes["sample"])
+        self.indexes = np.arange(self.X.sizes["sample"])
         if shuffle:
             np.random.shuffle(self.indexes)
 
     def __getitem__(self, index):
         "Generate one batch of data"
         # selects indices of data for next batch
-        indexes = self.indexes[index * self.batch_size : (index + 1) * self.batch_size]
+        indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
 
         # select data and load images
         Y_batch = self.Y_darray.sel(samples=indexes).values
         X_batch = self.X_darray.sel(samples=indexes).values
-        
+
         # preprocess and augment data
         if isinstance(self.max_pool, int):
             X_batch = self.maxPooling(X_batch, self.max_pool)
@@ -67,12 +66,12 @@ class DataGenerator(keras.utils.Sequence):
 
         if self.augment == True:
             X_batch = self.augmentor(X_batch)
-        
+
         # categorical label for Keras
         Y_batch = np_utils.categorical(Y_batch, self.num_classes)
-        
-        return X_batch, Y_batch	
-    
+
+        return X_batch, Y_batch
+
     def maxPooling(self, X, kernel_size):
         aug = iaa.MaxPooling(kernel_size, keep_size=False)
         return aug.augment_images(X)
@@ -81,16 +80,16 @@ class DataGenerator(keras.utils.Sequence):
         "Apply data augmentation"
         sometimes = lambda aug: iaa.Sometimes(0.5, aug)
         seq = iaa.Sequential(
-                [
-                # apply the following augmenters to most images
-                iaa.Fliplr(0.5),  # horizontally flip 50% of all images
-                iaa.Flipud(0.2),  # vertically flip 20% of all images
-                sometimes(iaa.Affine(
-                    rotate=(-10, 10),  # rotate by -45 to +45 degrees
-                    order=0, # use nearest neighbour
-                    mode="constant" # 0-padding (cv2.BORDER_CONSTANT)
-                ))
-                ],
-                random_order=True # apply augmenters in random order
-        )
+                  [
+                   # apply the following augmenters to most images
+                   iaa.Fliplr(0.5),  # horizontally flip 50% of all images
+                   iaa.Flipud(0.2),  # vertically flip 20% of all images
+                   sometimes(iaa.Affine(
+                      rotate=(-10, 10),  # rotate by -45 to +45 degrees
+                      order=0,  # use nearest neighbour
+                      mode="constant"  # 0-padding (cv2.BORDER_CONSTANT)
+                   ))
+                  ],
+                  random_order=True  # apply augmenters in random order
+              )
         return seq.augment_images(X)

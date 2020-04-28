@@ -94,3 +94,47 @@ class DataGenerator(tensorflow.keras.utils.Sequence):
                   random_order=True  # apply augmenters in random order
               )
         return seq.augment_images(X)
+
+    def testDataGenerator(self):
+        # preprocess and augment data
+        X = self.X.values
+        Y = self.Y.values
+        if isinstance(self.max_pool, int):
+            X_batch = self.maxPooling(X, self.max_pool)
+        X_batch = iaa.Resize({"height": self.image_size[0], "width": self.image_size[1]},
+                             interpolation="nearest").augment_images(X_batch)
+        X_batch = np.stack(X_batch, axis=0)
+
+        if self.augment:
+            X_batch = self.augmentor(X_batch)
+            X_batch = np.stack(X_batch, axis=0)
+
+        # categorical label for Keras
+        Y_batch = utils.to_categorical(Y, max(2, self.num_classes))
+        return X_batch, Y_batch
+
+
+def match_nsamples(X_darray, Y_darray):
+    """
+    down-sample the majority data. The target number is the
+    minimum of the minority count.
+
+    Args:
+        X_darray (xarray.DataArray): input features
+        Y_darrat (xarray.DataArray): labels (1D; [N])
+
+    Returns:
+        xarray.DataArray: downsampled data
+        xarray.DataArray: downsampled data
+    """
+    Y = Y_darray.values
+    uniques, counts = np.uniques(Y, return_counts=True)
+    minCount = counts.min()
+    out_indices = []
+    for u in uniques.tolist():
+        print(u)
+        org_indices = np.where(Y == u)
+        ds_indices = np.random.choice(org_indices, size=minCount)
+        out_indices.append(ds_indices)
+    sampled_indices = np.concatenate(out_indices)
+    return X_darray.isel(sample=sampled_indices), Y_darray.isel(sample=sampled_indices)

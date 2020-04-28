@@ -45,13 +45,34 @@ While Keras has some utilities for preprocessing, as we have multiple bands diff
 4. output to netCDF4 to read it later via XArray.  
    
 ### Model development  
-In process.  
+The model design is still underway, but the current architecture is based on two building blocks, two averageMaxPooling, one globalAveragePooling, two fully conntected layers.  
   
 ### Train and test the model  
-I trained the model with NVIDIA GTX-1070, CUDA10.1, CuDNN7, and Tensorflow-xx.xx.  
+The scripts are tested in the following configurations:
+   - NVIDIA GTX-1070, CUDA10.1, CuDNN7, and Tensorflow-2.1.  
+   - Tesla P100, CUDA10.1, CuDNN7, and Tensorflow-2.1  
+  
 The scripts should work under this configuration. While other configuration may also work, you will need corresponding CUDA, CuDNN, and Tensorflow version to run the scripts.  
 To replicate the environment, Dockerfile is in this repository.  
   
+To train the model under model/:  
+```bash  
+python train.py -c ${configFile.ini}
+```
+  
+The tensorboard callback is passed to the model. To show tensorboard:  
+```bash
+tensorboard --logDir ${log_directory}
+```
+  
+To see tensorboard running in the container, bind the ports when you run docker:  
+```bash
+docker build .
+docker run -it --name ${container_name} -v ${path_to_leveeNet}/leveeNet:/opt/analysis/leveeNet -p 9088:9088
+tensorboard --logDir ${log_directory} --port 9088 --bind_all
+```
+  
+
 ## Future improvements  
 - use truely global dataset
 - predict the location of levees  

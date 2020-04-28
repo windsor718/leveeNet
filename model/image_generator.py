@@ -25,6 +25,7 @@ class DataGenerator(keras.utils.Sequence):
         shuffle (bool): if True, shuffle indexes every batch.
             in either way the indexes are shuffled when you make an instance.
         augment (bool): if True, perform data augmentation.
+        plot (bool): if True, plot loss at the end of the epoch.
     """
     def __init__(self, X_darray, Y_darray, num_classes,
                  batch_size=32, image_size=(256, 256), max_pool=None,

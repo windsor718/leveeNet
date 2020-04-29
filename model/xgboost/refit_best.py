@@ -1,3 +1,21 @@
+"""
+Notes:
+    features:
+        f0: R
+        f1: G
+        f2: B
+        f3: NIR
+        f4: SWIR
+        f5: water/ice
+        f6: developed
+        f7: barren land
+        f8: forest
+        f9: scrub
+        f10: grass
+        f11: crops
+        f12: wetlands
+        f13: elevation
+"""
 import numpy as np
 import xarray as xr
 import xgboost as xgb
@@ -12,6 +30,7 @@ seaborn.set_style("whitegrid")
 
 
 NCPATH = "/mnt/d/data.nc"
+IMGOUTDIR = "./images"
 TVALSPLIT = 0.8
 TESTSPLIT = 0.8
 CACHEDIR = "./"
@@ -58,11 +77,17 @@ print("test auc: {0:.3f}".format(aucval))
 print(classification_report(Y_test, ypred_label))
 # draw a plot of importance
 xgb.plot_importance(bst)
-if not os.path.exists("./images"):
-    os.makedirs("./images")
-plt.savefig("./images/importance.png", dpi=300)
+if not os.path.exists(IMGOUTDIR):
+    os.makedirs(IMGOUTDIR)
+plt.savefig(os.path.join(IMGOUTDIR, "importance.png"), dpi=300)
 plt.close()
 # draw a plot of graph
 xgb.plot_tree(bst, num_trees=6)
-plt.savefig("./images/tree.png", dpi=300)
+plt.savefig(os.path.join(IMGOUTDIR, "tree.png"), dpi=300)
+plt.close()
+# draw a ROC curve
+plt.plot(fpr, tpr, label="XGBoost")
+ref = np.linspace(0, 1, 10)
+plt.plot(ref, ref, color="#C0392B")
+plt.savefig(os.path.join(IMGOUTDIR, "roc.png"), dpi=300)
 plt.close()

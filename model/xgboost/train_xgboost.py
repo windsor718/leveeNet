@@ -117,7 +117,6 @@ def make_dataset(ncpath):
     return X_reduced, Y
 
 
-
 def split_dataset(X, Y, tvalsplit, testsplit,
                   cache=True, cachedir="./"):
     # split dataset
@@ -163,7 +162,6 @@ def train_xgboost(X_train, Y_train, X_valid, Y_valid,
     Y_train_np = Y_train.transpose("sample", ...).values
     X_valid_np = X_valid.transpose("sample", ...).values
     Y_valid_np = Y_valid.transpose("sample", ...).values
-    print(X_train_np.shape, Y_train_np.shape)
     dtrain = xgb.DMatrix(X_train_np, label=Y_train_np)
     dvalid = xgb.DMatrix(X_valid_np, label=Y_valid_np)
     evallist = [(dvalid, 'eval'), (dtrain, 'train')]

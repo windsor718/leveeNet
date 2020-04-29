@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     libnetcdff-dev
 
 # install required packages
-RUN pip install keras xarray imgaug tqdm netcdf4
+RUN pip install xarray imgaug tqdm
 WORKDIR /usr/local/lib/python3.6/dist-packages
 RUN git clone https://github.com/Unidata/netcdf4-python.git
 WORKDIR /usr/local/lib/python3.6/dist-packages/netcdf4-python

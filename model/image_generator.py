@@ -128,13 +128,13 @@ def match_nsamples(X_darray, Y_darray):
         xarray.DataArray: downsampled data
     """
     Y = Y_darray.values
-    uniques, counts = np.uniques(Y, return_counts=True)
+    uniques, counts = np.unique(Y, return_counts=True)
     minCount = counts.min()
     out_indices = []
     for u in uniques.tolist():
-        print(u)
-        org_indices = np.where(Y == u)
+        org_indices = np.where(Y == u)[0]
         ds_indices = np.random.choice(org_indices, size=minCount)
+        print(u, ds_indices.shape)
         out_indices.append(ds_indices)
     sampled_indices = np.concatenate(out_indices)
     return X_darray.isel(sample=sampled_indices), Y_darray.isel(sample=sampled_indices)

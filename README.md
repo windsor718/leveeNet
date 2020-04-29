@@ -45,41 +45,11 @@ While Keras has some utilities for preprocessing, as we have multiple bands diff
 4. output to netCDF4 to read it later via XArray.  
    
 ### Model development  
-The model design is still underway, but the current architecture is based on three building blocks, two averageMaxPooling, one globalAveragePooling, two fully conntected layers.  
+#### CNN
+The model design is still underway, but the current architecture is based on three building blocks, two averageMaxPooling, one globalAveragePooling, two fully conntected layers. See `model/model.py` for the actual architecture.  
   
-- Input image (256 x 256)
-
-- 3x3 2D convolutional layer (64 filters)
-- batch normalization
-- ReLU
-- 3x3 2D convolutional layer (64 filters)
-- batch normalization
-- ReLI
-  
-- 2D AveragePooling
-  
-- 3x3 2D convolutional layer (128 filters)
-- batch normalization
-- ReLU
-- 3x3 2D convolutional layer (128 filters)
-- batch normalization
-- ReLU
-  
-- 2D AveragePooling
-  
-- 3x3 2D convolutional layer (256 filters)
-- batch normalization
-- ReLU
-- 3x3 2D convolutional layer (256 filters)
-- batch normalization
-- ReLU
-  
-- 2D GlobalAveragePooling
-  
-- fully-connected layer (120)
-- fully-connected layer (2)
-  
-- output class (protected/non-protected)  
+#### XGBoost  
+Along with the CNN, the model using XGBoost was also included. The hyperparameters are tuned by GridSearchCV.  
   
 ### Train and test the model  
 The scripts are tested in the following configurations:

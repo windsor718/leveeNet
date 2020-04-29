@@ -3,3 +3,7 @@
 *.vscode
 Dataset/*
 log/*
+*.nc
+*.pickle
+*.json
+*.model

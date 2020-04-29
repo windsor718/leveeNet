@@ -46,7 +46,7 @@ While Keras has some utilities for preprocessing, as we have multiple bands diff
    
 ### Model development  
 #### CNN
-The model design is still underway, but the current architecture is based on three building blocks, two averageMaxPooling, one globalAveragePooling, two fully conntected layers. See `model/model.py` for the actual architecture.  
+The model design is still underway, but the current architecture is based on three building blocks, two averageMaxPooling, one globalAveragePooling, two fully conntected layers. See `model/cnn/model.py` for the actual architecture.  
   
 #### XGBoost  
 Along with the CNN, the model using XGBoost was also included. The hyperparameters are tuned by GridSearchCV.  

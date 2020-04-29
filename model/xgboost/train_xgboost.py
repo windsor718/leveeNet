@@ -69,7 +69,6 @@ def reduce_dimension(darray, operation="mean", dims=["v", "h"]):
     if operation == "mean":
         return darray.mean(dims)
     elif operation == "sum":
-        print(darray.sum(dims))
         return darray.sum(dims)
     elif operation == "max":
         return darray.max(dims)

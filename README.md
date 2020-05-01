@@ -52,7 +52,7 @@ While Keras has some utilities for preprocessing, as we have multiple bands diff
    
 ### Model development  
 #### CNN
-The model design is still underway, but the current architecture is based on three building blocks, two averageMaxPooling, one globalAveragePooling, two fully conntected layers. See `model/cnn/model.py` for the actual architecture. Before pass the images to the model, following additional preprocess was performed:
+The model design is still underway, but the current architecture is based on three building blocks, two averageMaxPooling, one globalAveragePooling, two fully conntected layers. See `model/cnn/model.py` for the actual architecture. Before passing the images to the model, following additional preprocess was performed:
    - 2D Maximum pooling to reduce image size (kernel_size=4), and nearest interpolation to get 256x256px images.
    - image augmentation via Affine conversion. performed probabilistically when a batch is created.  
   
@@ -93,5 +93,5 @@ tensorboard --logDir ${log_directory} --port 9088 --bind_all
 ## Future improvements  
 - some of the feature engineering (e.g., elevation) can be improved.  
 - use truely global dataset
-- predict the location of levees in pixels  
+- predict the location of levees in pixels via VAE  
 - use [MERIT-HYDRO](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019WR024873)/[GRWL](https://science.sciencemag.org/content/361/6402/585) 

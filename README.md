@@ -6,9 +6,9 @@ trying to detect two things:
 - **what** are the properties (e.g., height) of those levees?  
   
 As of 2020/04, currently am working in the first bullet, **where** are levees.  
-For the very first step of this project, the current goal is to predict whether the image is protected-river or not.  
   
 ## Change log  
+2020/05/02 added U-Net for image segmentation.  
 2020/04/29 XGBoost (Acc=96%, Precision=0.95, Recall=0.98); CNN (Acc=86%, Precision=0.79, recall=0.96).  
 2020/04/26 started project. created repository.  
   
@@ -51,18 +51,27 @@ While Keras has some utilities for preprocessing, as we have multiple bands diff
 4. output to netCDF4 to read it later via XArray.  
    
 ### Model development  
-#### CNN
+#### CNN: image-wise classification
 The model design is still underway, but the current architecture is based on three building blocks, two averageMaxPooling, one globalAveragePooling, two fully conntected layers. See `model/cnn/model.py` for the actual architecture. Before passing the images to the model, following additional preprocess was performed:
    - 2D Maximum pooling to reduce image size (kernel_size=4), and nearest interpolation to get 256x256px images.
    - image augmentation via Affine conversion. performed probabilistically when a batch is created.  
   
-#### XGBoost  
+#### XGBoost: image-wise classification  
 Along with the CNN, the model using XGBoost was also included. The hyperparameters are tuned by GridSearchCV. Before passing the images to the model, following additional preprocess was performed:  
    - reduce 2D (height x width) dimension into 1D.  
      - Sentinel bands [R, G, B, NIR, SWIR]: mean
      - land cover (one-hot-encoded): sum
      - elevation: std
    - after the reduction of images, I applied feature-wise standardization  
+  
+#### U-Net: pixel-wise image segmentation  
+Being different from the models above, this model is meant for pixel-wise levee detection, or image segmentation. The architecture is following to the original paper ([Ronneberger et al., 2015](https://arxiv.org/abs/1505.04597)), but with batch normalization after ReLu activation. This architecture has VAE-style (encoder/decoder) image generation process, with skip connection at each convolution level. See `model/unet/model.py` for the actual implementation. The preprocessing part is similar to the CNN above, with slight modifications:  
+   - 2D Maximum pooling toreduce image size (kernel_size=2), and nearest interpolation to get 512x512px images.  
+   - image augmentation via Affine conversion. performed probabilistically.  
+   - labels are now 2D image, with 0: non-levee 1: with-levee pixels.
+  
+#### PSP-Net: pixel-wise image segmentation  
+*will be considered in the future work*  
   
 ### Train and test the model  
 The scripts are tested in the following configurations:

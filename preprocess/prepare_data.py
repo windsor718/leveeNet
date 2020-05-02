@@ -13,6 +13,7 @@ NCPU = 4
 DTYPE = np.float32
 BANDS = ['R', 'G', 'B', 'NIR', 'SWIR',
          'landcover', 'elevation', 'levee']
+LABELBANDAXIS = 7
 X_ATTR = {"desctiption": "feature array","bands": BANDS}
 Y_ATTR = {"description": "contains levee in an image (1) or not (0)"}
 LC_CLASSES = [[11, 12],  # water/ice
@@ -25,7 +26,7 @@ LC_CLASSES = [[11, 12],  # water/ice
               [90, 95]]  # wetlands
 
 
-def make_dataset(outpath, srcdir, per_band=True):
+def make_dataset(outpath, srcdir, labeltype, per_band=True):
     """
     make dataset for a model.
 
@@ -44,7 +45,8 @@ def make_dataset(outpath, srcdir, per_band=True):
     """
     if per_band:
         outdir = os.path.dirname(outpath)
-        outpaths, outpath_label = get_data_by_bands(srcdir, outdir)
+        outpaths, outpath_label = get_data_by_bands(srcdir, outdir,
+                                                    labeltype=labeltype)
         darrays = []
         for idx, path in enumerate(outpaths):
             # re-read cached netCDF. This is lazy-loaded.
@@ -96,7 +98,7 @@ def remap_bands(darrays, idx):
     return features
 
 
-def get_data_by_bands(srcdir, outdir, labelBandAxis=7):
+def get_data_by_bands(srcdir, outdir, labeltype="scalar"):
     """
     generate feature/label data by bands to reduce memory consumption.
     for later lazy-loading process, the output will be stored into
@@ -135,8 +137,15 @@ def get_data_by_bands(srcdir, outdir, labelBandAxis=7):
         outpaths.append(outname_band.format(BANDS[bandaxis]))
     del darray
 
-    Y = batch_process_per_band(srcdir, labelBandAxis)
-    labels = xr.DataArray(Y, dims=["sample"], coords=[np.arange(Y.shape[0])])
+    Y = batch_process_per_band(srcdir, LABELBANDAXIS, labeltype=labeltype)
+    if labeltype == "scalar":
+        labels = xr.DataArray(Y, dims=["sample"], coords=[np.arange(nsamples)])
+    elif labeltype == "array2D":
+        labels = xr.DataArra(Y, dims=["sample", "v", "h"], coords=[np.arange(nsamples),
+                                                                   np.arange(nverticals),
+                                                                   np.arange(nhorizontals)])
+    else:
+        raise KeyError("undefined labeltype argument: {0}".format(labeltype))
     labels.attrs["creationDate"] = t.strftime("%Y%m%d-%H:%M")
     for key, item in Y_ATTR.items():
         labels.attrs[key] = item
@@ -145,7 +154,8 @@ def get_data_by_bands(srcdir, outdir, labelBandAxis=7):
     
     return outpaths, outname_label
 
-def batch_process(srcDir, parallel=False):
+
+def batch_process(srcDir, parallel=False, labeltype="scalar"):
     """
     batch the image processing in either serial or parallel.
 
@@ -171,7 +181,7 @@ def batch_process(srcDir, parallel=False):
         X = np.concatenate(outitems[0], axis=0)
         Y = np.concatenate(outitems[1], axis=0)
     else:
-        outitems = process_images(files, verbose=True)
+        outitems = process_images(files, verbose=True, labeltype=labeltype)
         X = outitems[0]
         Y = outitems[1]
     print("Feature matrix shape [samples, features, d0, d1]: ", X.shape)
@@ -182,7 +192,7 @@ def batch_process(srcDir, parallel=False):
     return X, Y
 
 
-def batch_process_per_band(srcDir, bandaxis, parallel=False):
+def batch_process_per_band(srcDir, bandaxis, parallel=False, labeltype="scalar"):
     """
     batch the image processing in either serial or parallel.
 
@@ -208,7 +218,8 @@ def batch_process_per_band(srcDir, bandaxis, parallel=False):
                             files_part)
         data = np.concatenate(outlist, axis=0)
     else:
-        data = process_images_per_band(bandaxis, files, verbose=True)
+        data = process_images_per_band(bandaxis, files,
+                                       verbose=True, labeltype=labeltype)
     # featureWiseStandardization for R, G, B, NIR, SWIR
     if bandaxis in [0, 1, 2, 3, 4]:
         # all arrays are shape[nsamples, 1, nv, nh]
@@ -239,7 +250,7 @@ def process_images(tiffpaths, verbose=False):
     return [X_all, Y_all]
 
 
-def process_images_per_band(bandaxis, tiffpaths, verbose=False):
+def process_images_per_band(bandaxis, tiffpaths, labeltype="scalar", verbose=False):
     """
     wrapper for process_image() for iteration.
 
@@ -253,18 +264,26 @@ def process_images_per_band(bandaxis, tiffpaths, verbose=False):
     dlist = []
     if verbose:
         tiffpaths = tqdm.tqdm(tiffpaths)
-    for tiffpath in tiffpaths:
-        data = process_image_per_band(bandaxis, tiffpath)
-        if bandaxis in [0, 1, 2, 3, 4, 5, 6]:
+    if bandaxis in [0, 1, 2, 3, 4, 5, 6]:
+        for tiffpath in tiffpaths:
+            data = process_image_per_band(bandaxis, tiffpath, labeltype=labeltype)
             dlist.append(np.expand_dims(data, axis=0))
-            d_all = np.concatenate(dlist, axis=0).astype(DTYPE)  # list of arrays
-        else:
-            dlist.append(data)
+        d_all = np.concatenate(dlist, axis=0).astype(DTYPE)  # list of arrays
+    else:
+        if labeltype == "scalar":
+            for tiffpath in tiffpaths:
+                data = process_image_per_band(bandaxis, tiffpath, labeltype=labeltype)
+                dlist.append(data)
             d_all = np.array(dlist).astype(DTYPE)
+        elif labeltype == "array2D":
+            for tiffpath in tiffpaths:
+                data = process_image_per_band(bandaxis, tiffpath, labeltype=labeltype)
+                dlist.append(np.expand_dim(data, axis=0))
+            d_all = np.concatenate(dlist, axis=0).astype(DTYPE)
     return d_all
 
 
-def process_image(tiffpath):
+def process_image(tiffpath, labeltype="scalar")):
     """
     pre-process image to make train/test dataset for models.
 
@@ -292,11 +311,11 @@ def process_image(tiffpath):
     sentinel = farray[0:5]
     X = np.vstack([sentinel, encoded_lc, elv])
     # label
-    y = get_label(farray[7])
+    y = get_label(farray[7], labeltype=labeltype)
     return X, y
 
 
-def process_image_per_band(bandaxis, tiffpath):
+def process_image_per_band(bandaxis, tiffpath, labeltype="scalar"):
     """
     pre-process image to make train/test dataset for models.
     only process one band. use this if your entire data does not fit
@@ -320,28 +339,37 @@ def process_image_per_band(bandaxis, tiffpath):
     elif bandaxis == 6:
         data = np.expand_dims(pp.sampleWiseStandardization(farray[6]), axis=0)
     elif bandaxis == 7:
-        data = get_label(farray[7])
+        data = get_label(farray[7], labeltype=labeltype)
     else:
         raise KeyError("Undefined band axis {0}".format(bandaxis))
     return data
 
 
-def get_label(leveeArray, threshold=10):
+def get_label(leveeArray, labeltype="scalar", threshold=10):
     """
     count number of levee pixels and return label for a image.
 
     Args:
         leveeArray (numpy.ndarray): levee location array
             (1 for levee, 0/nan for non-levee)
-        threshold (int): minimum number of levee pixels to label as levee image
+        type (str): scalar or array2D. output label type.
+        threshold (int): relevent only when type="scalar".
+            minimum number of levee pixels to label as levee image
     """
     leveeArray[np.isnan(leveeArray)] = 0
-    leveeCount = np.sum(leveeArray)
-    if leveeCount > threshold:
-        return 1
+    if type == "scalar":
+        leveeCount = np.sum(leveeArray)
+        if leveeCount > threshold:
+            return 1
+        else:
+            return 0
+    elif type == "array2D":
+        return leveeArray
     else:
-        return 0
-
+        raise KeyError(
+            "undefined labeltype argument: {0}".format(labeltype)
+            )
+        
 
 def parse_pooled_list(plist):
     """
@@ -407,4 +435,4 @@ def describe_dataset(X, Y):
 if __name__ == "__main__":
     srcdir = "../Dataset/images/"
     outpath = "../Dataset/data.nc"
-    make_dataset(outpath, srcdir, per_band=True)
+    make_dataset(outpath, srcdir, per_band=True, labeltype="array2D")

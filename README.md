@@ -1,4 +1,4 @@
-# leveeNet: Deep learning based manmade-levee detection  
+# leveeNet: Deep learning based levee detection from space  
 Preliminary version   
 ## Project description  
 trying to detect two things:  

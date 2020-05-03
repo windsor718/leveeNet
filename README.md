@@ -65,10 +65,10 @@ Along with the CNN, the model using XGBoost was also included. The hyperparamete
    - after the reduction of images, I applied feature-wise standardization  
   
 #### U-Net: pixel-wise image segmentation  
-Being different from the models above, this model is meant for pixel-wise levee detection, or image segmentation. The architecture is following to the original paper ([Ronneberger et al., 2015](https://arxiv.org/abs/1505.04597)), but with batch normalization after ReLu activation. This architecture has VAE-style (encoder/decoder) image generation process, with skip connection at each convolution level. See `model/unet/model.py` for the actual implementation. The preprocessing part is similar to the CNN above, with slight modifications:  
-   - 2D Maximum pooling toreduce image size (kernel_size=2), and nearest interpolation to get 512x512px images.  
+Being different from the models above, this model is meant for pixel-wise levee detection, or image segmentation. The architecture is following to the original paper ([Ronneberger et al., 2015](https://arxiv.org/abs/1505.04597)), but with batch normalization after ReLu activation. This architecture has VAE-style (encoder/decoder) image generation process, with skip connections at each convolution level. See `model/unet/model.py` for the actual implementation. The preprocessing part is similar to the CNN above, with slight modifications:  
+   - 2D Maximum pooling to reduce image size (kernel_size=2), and nearest interpolation to get 512x512px images.  
    - image augmentation via Affine conversion. performed probabilistically.  
-   - labels are now 2D image, with 0: non-levee 1: with-levee pixels.
+   - labels are now 2D images, with 0: non-levee 1: with-levee pixels.
   
 #### PSP-Net: pixel-wise image segmentation  
 *will be considered in the future work*  

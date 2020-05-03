@@ -15,7 +15,7 @@ As of 2020/04, currently am working in the first bullet, **where** are levees.
 ## Source trees  
 - **gee**: scripts for processing in/out-of Google Earth Engine  
 - **preprocess**: scripts for preprocessing output images from gee  
-- **model**: cnn and xgboost. for additional preprocessing, model definitions, and training/testing models.  
+- **model**: xgboost, cnn, and unet. for additional preprocessing, model definitions, and training/testing models.  
   
 ## Workflow  
 ### Google Earth Engine processing  

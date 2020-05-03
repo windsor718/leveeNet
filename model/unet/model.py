@@ -1,10 +1,9 @@
-import numpy as np
-from tf.keras.models import Model
-from tf.keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, Dropout, Conv2DTranspose, concatenate
-from tf.keras.optimizers import Adam
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, Dropout, Conv2DTranspose, concatenate
+from tensorflow.keras.optimizers import Adam
 
 
-def uNet(n_classes, input_size):
+def u_Net(n_classes, input_size):
     """
     u_net model definition.
 
@@ -21,10 +20,10 @@ def uNet(n_classes, input_size):
                         conv5 -stage 5- conv5_up
     """
     inputs = Input(input_size)
-    
+
     # stage 1
     conv1_enc = conv2d_uNet(inputs, 64)
-    
+
     # stage 2
     pool2_enc = MaxPooling2D(2)(conv1_enc)
     conv2_enc = conv2d_uNet(pool2_enc, 128)
@@ -92,5 +91,3 @@ def conv2d_uNet(input, nfilters,
                activation="relu", padding="same")(x)
     x = BatchNormalization()(x)
     return x
-
-

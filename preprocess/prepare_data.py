@@ -398,7 +398,7 @@ def save_to_netCDF(outpath, X, Y, X_attr, Y_attr):
     features.attrs["creationDate"] = t.strftime("%Y%m%d-%H:%M")
     for key, item in X_attr.items():
         features.attrs[key] = item
-
+    
     nsamples = Y.shape[0]
     if LABELTYPE == "scalar":
         labels = xr.DataArray(Y, dims=["sample"], coords=[np.arange(nsamples)])
@@ -415,7 +415,6 @@ def save_to_netCDF(outpath, X, Y, X_attr, Y_attr):
     labels.attrs["creationDate"] = t.strftime("%Y%m%d-%H:%M")
     for key, item in Y_attr.items():
         labels.attrs[key] = item
-
     dset = xr.Dataset({"features": features, "labels": labels})
     dset.to_netcdf(outpath)
 

@@ -12,3 +12,5 @@ model/cnn/*.png
 Untitled*
 model/xgboost/images/*
 *.xgbmodel
+out/*
+nohup.out

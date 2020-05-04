@@ -93,8 +93,10 @@ tensorboard --logDir ${log_directory}
   
 To see tensorboard running in the container, bind the ports when you run docker:  
 ```bash
+# in the host
 docker build .
 docker run -it --name ${container_name} -v ${path_to_leveeNet}/leveeNet:/opt/analysis/leveeNet -p 9088:9088
+# in the container
 tensorboard --logDir ${log_directory} --port 9088 --bind_all
 ```
   
